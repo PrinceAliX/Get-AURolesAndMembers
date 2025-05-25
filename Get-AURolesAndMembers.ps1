@@ -1,10 +1,14 @@
 <#
 .SYNOPSIS
-    Retrieves role assignments for the current user including AU scoped roles and lists AU members.
+    Retrieves role assignments for the current or specified user including AU scoped roles and lists AU members.
 
 .PARAMETER Output
     Optional. Path to save output. Supports .txt or .csv.
     If not specified, output is printed to console only.
+
+.PARAMETER UserId
+    Optional. Specify a User ID (ObjectId) to retrieve roles for a different user.
+    The Microsoft Graph access token contains your user ID in the oid field.
 
 .PARAMETER Help
     Show this help message.
@@ -13,27 +17,32 @@
     .\Get-AURolesAndMembers.ps1 -Output report.txt
 
 .EXAMPLE
-    .\Get-AURolesAndMembers.ps1 -h
+    .\Get-AURolesAndMembers.ps1 -UserId "<user-object-id>"
 
+.EXAMPLE
+    .\Get-AURolesAndMembers.ps1 -h
 #>
 
 param(
     [string]$Output,
+    [string]$UserId,
     [switch]$Help,
     [switch]$h
 )
 
 function Show-Help {
     Write-Host @"
-Usage: Get-AURolesAndMembers.ps1 [-Output <file.txt|file.csv>] [-Help|-h]
+Usage: Get-AURolesAndMembers.ps1 [-Output <file.txt|file.csv>] [-UserId <GUID>] [-Help|-h]
 
 Options:
   -Output   Path to save output file (.txt or .csv). If omitted, output prints to console.
+  -UserId   Optional. Specify a User ID to retrieve roles for another user.
+           The Microsoft Graph access token contains your user ID in the 'oid' field.
   -Help, -h Show this help message.
 
-Example:
+Examples:
   .\Get-AURolesAndMembers.ps1 -Output AUReport.txt
-
+  .\Get-AURolesAndMembers.ps1 -UserId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 "@
 }
 
@@ -59,11 +68,12 @@ if (-not (Get-MgContext)) {
 
 $outputData = @()
 
-# Get current user's ID
-$user = Get-MgUser -UserId (Get-MgContext).Account
-$userId = $user.Id
+# Get user ID
+if (-not $UserId) {
+    $UserId = (Get-MgUser -UserId (Get-MgContext).Account).Id
+}
 
-$assignments = Get-MgRoleManagementDirectoryRoleAssignment -Filter "principalId eq '$userId'"
+$assignments = Get-MgRoleManagementDirectoryRoleAssignment -Filter "principalId eq '$UserId'"
 
 foreach ($assignment in $assignments) {
     $role = Get-MgRoleManagementDirectoryRoleDefinition -UnifiedRoleDefinitionId $assignment.RoleDefinitionId
@@ -164,7 +174,6 @@ foreach ($assignment in $assignments) {
 
 # Output logic
 if (-not $Output) {
-    # Print to console
     foreach ($roleEntry in $outputData) {
         Write-Host "============================="
         Write-Host "Role Name      : $($roleEntry.RoleName)"
@@ -189,7 +198,6 @@ if (-not $Output) {
 else {
     $ext = [System.IO.Path]::GetExtension($Output).ToLower()
     if ($ext -eq ".txt") {
-        # Save as text file similar to console output
         $txtOutput = ""
 
         foreach ($roleEntry in $outputData) {
@@ -217,40 +225,39 @@ else {
         Write-Host "Output saved to $Output" -ForegroundColor Green
     }
     elseif ($ext -eq ".csv") {
-        # For CSV, flatten members per role into separate rows
         $csvOutput = @()
         foreach ($roleEntry in $outputData) {
             if ($roleEntry.Members.Count -eq 0) {
                 $csvOutput += [PSCustomObject]@{
-                    RoleName = $roleEntry.RoleName
-                    RoleDesc = $roleEntry.RoleDesc
-                    Scope    = $roleEntry.Scope
-                    AUName   = $roleEntry.AUName
-                    AUId     = $roleEntry.AUId
-                    MemberType = ""
-                    MemberName = ""
-                    MemberUPN = ""
+                    RoleName       = $roleEntry.RoleName
+                    RoleDesc       = $roleEntry.RoleDesc
+                    Scope          = $roleEntry.Scope
+                    AUName         = $roleEntry.AUName
+                    AUId           = $roleEntry.AUId
+                    MemberType     = ""
+                    MemberName     = ""
+                    MemberUPN      = ""
                     MemberJobTitle = ""
-                    MemberEnabled = ""
+                    MemberEnabled  = ""
                 }
             }
             else {
                 foreach ($m in $roleEntry.Members) {
                     $csvOutput += [PSCustomObject]@{
-                        RoleName      = $roleEntry.RoleName
-                        RoleDesc      = $roleEntry.RoleDesc
-                        Scope         = $roleEntry.Scope
-                        AUName        = $roleEntry.AUName
-                        AUId          = $roleEntry.AUId
-                        MemberType    = $m.MemberType
-                        MemberName    = $m.Name
-                        MemberUPN     = $m.UPN
-                        MemberJobTitle= $m.JobTitle
-                        MemberEnabled = $m.Enabled
+                        RoleName       = $roleEntry.RoleName
+                        RoleDesc       = $roleEntry.RoleDesc
+                        Scope          = $roleEntry.Scope
+                        AUName         = $roleEntry.AUName
+                        AUId           = $roleEntry.AUId
+                        MemberType     = $m.MemberType
+                        MemberName     = $m.Name
+                        MemberUPN      = $m.UPN
+                        MemberJobTitle = $m.JobTitle
+                        MemberEnabled  = $m.Enabled
                     }
                 }
             }
-        }  
+        }
 
         $csvOutput | Export-Csv -Path $Output -NoTypeInformation -Encoding UTF8
         Write-Host "Output saved to $Output" -ForegroundColor Green
