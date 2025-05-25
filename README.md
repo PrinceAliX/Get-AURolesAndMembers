@@ -33,14 +33,16 @@ User: Felix Schneider | UPN/Info: Felix.Schneider@megabigtech.com | Job Title: E
 
 ### Help
 ```
-.\Get-AURolesAndMembers.ps1 -Help
---------------------------------------------------------------------------------
-Usage: Get-AURolesAndMembers.ps1 [-Output <file.txt|file.csv>] [-Help|-h]
+PS C:\mcrtp_bootcamp_tools> .\Get-AURolesAndMembers.ps1 -Help
+Usage: Get-AURolesAndMembers.ps1 [-Output <file.txt|file.csv>] [-UserId <GUID>] [-Help|-h]
 
 Options:
   -Output   Path to save output file (.txt or .csv). If omitted, output prints to console.
+  -UserId   Optional. Specify a User ID to retrieve roles for another user.
+           The Microsoft Graph access token contains your user ID in the 'oid' field.
   -Help, -h Show this help message.
 
-Example:
+Examples:
   .\Get-AURolesAndMembers.ps1 -Output AUReport.txt
+  .\Get-AURolesAndMembers.ps1 -UserId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
